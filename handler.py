@@ -11,16 +11,17 @@ from aiogram import types
 @han.message_handler(commands=["add_link", "awl"], is_admin=True)
 async def LinkAdd(message: types.Message):
 
-    link = GetLink(message)
-    param = cur.execute("SELECT link FROM whitelist WHERE chat_id = ? AND link = ?", (message.chat.id, link))
-    
-    if param.fetchone() is None:
-        cur.execute("INSERT INTO whitelist VALUES (?, ?)", (link, message.chat.id))
-        db.commit()
-        await message.reply("Link added to whitelist")
-    
-    else:
-        await message.reply("Link already exists")
+    links = GetLink(message)
+    for link in links:
+        param = cur.execute("SELECT link FROM whitelist WHERE chat_id = ? AND link = ?", (message.chat.id, link))
+
+        if param.fetchone() is None:
+            cur.execute("INSERT INTO whitelist VALUES (?, ?)", (link, message.chat.id))
+            db.commit()
+            await message.reply("Link added to whitelist")
+
+        else:
+            await message.reply("Link already exists")
     
 #
 # This function removes a link from the whitelist
@@ -28,16 +29,17 @@ async def LinkAdd(message: types.Message):
 @han.message_handler(commands=["remove_link", "rwl"], is_admin=True)
 async def LinkDelete(message: types.Message):
 
-    link = GetLink(message)
-    param = cur.execute("SELECT link FROM whitelist WHERE chat_id = ? AND link = ?", (message.chat.id, link))
-    
-    if param.fetchall() is not None:
-        cur.execute("DELETE FROM whitelist WHERE chat_id = ? AND link = ?", (message.chat.id, link))
-        db.commit()
-        await message.reply("Link has been removed from whitelist")
-    
-    else:
-        await message.reply("The link has already been removed from the whitelist")
+    links = GetLink(message)
+    for link in links:
+        param = cur.execute("SELECT link FROM whitelist WHERE chat_id = ? AND link = ?", (message.chat.id, link))
+        
+        if param.fetchall() is not None:
+            cur.execute("DELETE FROM whitelist WHERE chat_id = ? AND link = ?", (message.chat.id, link))
+            db.commit()
+            await message.reply("Link has been removed from whitelist")
+        
+        else:
+            await message.reply("The link has already been removed from the whitelist")
 
 #
 # This function shows blocked links in the chat
@@ -70,8 +72,10 @@ async def wait(message:types.Message):
                     await message.delete()
                     await message.answer("Message with link deleted")
                     return
-
+#
+#
+#
 def GetLink(message):
     original = message.text.split(maxsplit=1)[1]
-    original = original.replace("https://", "")
-    return original.split("/", maxsplit=1)[0]
+    pattern = re.compile(r"(https?:\/\/)?([\w-]{1,32}\.[\w-]{1,32})[^\s@]*")
+    return pattern.findall(original)
